@@ -117,12 +117,19 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
             exit(EXIT_SUCCESS);
 	      }
         else if (!strcmp("jobs", argv[0])) {
+          job_t *j = last_job;
           if(last_job->first_process->pid && last_job->first_process->status) {
             printf("%s %d\n", last_job->commandinfo, last_job->first_process->status);
-            job_t* j = last_job;
-              while(j->next) {
+            if(job_is_completed(j)) {
+              delete_job(j, last_job); 
+            }
+            j = j->next;
+            while(j) {
+                printf("%s %d\n", j->pgid, j->first_process->status);
+                if(job_is_completed(j)) {
+                  delete_job(j, last_job); 
+                }
                 j = j->next;
-                printf("%s %d\n", last_job->pgid, last_job->first_process->status);
               }
               return true;
           }
@@ -130,13 +137,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
         }
 	else if (!strcmp("cd", argv[0])) {
       char cwd[1024];
-      if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        printf("%s\n", cwd);
-      }
       chdir(argv[1]);
-      if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        printf("%s\n", cwd);
-      }
 
             /* Your code here */
         }
