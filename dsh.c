@@ -59,6 +59,7 @@ void spawn_job(job_t *j, bool fg)
 
 	pid_t pid;
 	process_t *p;
+  int status = 0;
 
 	for(p = j->first_process; p; p = p->next) {
 
@@ -74,6 +75,7 @@ void spawn_job(job_t *j, bool fg)
           case 0: /* child process  */
             p->pid = getpid();	    
             new_child(j, p, fg);
+            execvp(p->argv[0], p->argv);
             
 	    /* YOUR CODE HERE?  Child-side code for new process. */
             perror("New child should have done an exec");
@@ -84,7 +86,7 @@ void spawn_job(job_t *j, bool fg)
             /* establish child process group */
             p->pid = pid;
             set_child_pgid(j, p);
-
+            waitpid(pid, &status, 0);
             /* YOUR CODE HERE?  Parent-side code for new process.  */
           }
 
@@ -143,7 +145,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
         }
         else if (!strcmp("bg", argv[0])) {
           while(1) {
-            continue;
+            break;
           }
             /* Your code here */
         }
@@ -206,11 +208,8 @@ int main()
 
         /* Only for debugging purposes to show parser output; turn off in the
          * final code */
-    printf("hello\n");
     printf("pid:%d\n", j->pgid);
     if(PRINT_INFO) print_job(j);
-    int numcmds = 0;
-    job_t* nextj;
     process_t* proc = j->first_process;
       if(builtin_cmd(j, proc->argc, proc->argv))
         continue;
