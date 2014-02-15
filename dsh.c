@@ -78,8 +78,7 @@ void spawn_job(job_t *j, bool fg)
   int fd[2];
   pipe(fd);
   bool first = true;
-  if (j->pgid < 0)
-      j->pgid = getpid();
+
 
 	for(p = j->first_process; p; p = p->next) {
     int i = 0;
@@ -93,18 +92,19 @@ void spawn_job(job_t *j, bool fg)
 	  /* Builtin commands are already taken care earlier */
 	  
 	  switch (pid = fork()) {
-
+          printf("%s\n", first ? "true" : "false");
           case -1: /* fork failure */
             perror("fork");
             exit(EXIT_FAILURE);
 
           case 0: /* child process  */
+            printf("child : %s\n", first ? "true" : "false");
             p->pid = getpid();
             printf("newchild error : pgid - %d\n", j->pgid);	    
             new_child(j, p, fg);
             if(!first) {
-              close(fd[0]);   /*Closes read side of pipe*/
-              close(1);       //STDOUT closed
+              close(fd[0]);   
+              close(1);      
               dup2(fd[1],1);
             }
             printf("calling exec:\n");
@@ -118,6 +118,7 @@ void spawn_job(job_t *j, bool fg)
             break;    /* NOT REACHED */
 
           default: /* parent */
+            printf("parent : %s\n", first ? "true" : "false");
             /* establish child process group */
             p->pid = pid;
             set_child_pgid(j, p);
@@ -125,7 +126,7 @@ void spawn_job(job_t *j, bool fg)
               close(fd[1]);
               close(0);       //stdin closed
               dup2(fd[0],0);
-          }
+            }
             //waitpid(pid, &status, 0);
             /* YOUR CODE HERE?  Parent-side code for new process.  */
           }
@@ -176,6 +177,8 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
                 }
                 j = j->next;
               }
+              last_job->first_process->status = 0;
+              last_job->first_process->completed = true;
 
               return true;
           }
@@ -280,13 +283,21 @@ int main()
     process_t* proc;
     job_t * workingjob = j;
     while(workingjob) {
+        if (workingjob->pgid < 0)
+          workingjob->pgid = getpid();
       
       proc = workingjob->first_process;
       if(builtin_cmd(workingjob, proc->argc, proc->argv)) {}
-      else if(!workingjob->bg)
+      else if(!workingjob->bg) {
          spawn_job(workingjob, !workingjob->bg);
-      else
+         printf("process pid %d\n", workingjob->first_process->pid);
+         waitpid(workingjob->first_process->pid, &status, 0);
+       }
+      else {
+        printf("backgrounding\n");
         spawn_job(workingjob, !workingjob->bg);
+
+      }
       
       workingjob = workingjob->next;
     }
