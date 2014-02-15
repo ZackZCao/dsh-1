@@ -75,9 +75,20 @@ void spawn_job(job_t *j, bool fg)
 	pid_t pid;
 	process_t *p;
   int status = 0;
+  int fd[2];
+  pipe(fd);
+  bool first = true;
+  if (j->pgid < 0)
+      j->pgid = getpid();
 
 	for(p = j->first_process; p; p = p->next) {
+    int i = 0;
+    while(p->argv[i]) {
+    printf("%s\n", p->argv[i]);
+    i++;
+  }
 
+  printf("processid : %d\n", p->pid);
 	  /* YOUR CODE HERE? */
 	  /* Builtin commands are already taken care earlier */
 	  
@@ -89,8 +100,16 @@ void spawn_job(job_t *j, bool fg)
 
           case 0: /* child process  */
             p->pid = getpid();
-            printf("newchild error\n");	    
+            printf("newchild error : pgid - %d\n", j->pgid);	    
             new_child(j, p, fg);
+            if(!first) {
+              close(fd[0]);   /*Closes read side of pipe*/
+              close(1);       //STDOUT closed
+              dup2(fd[1],1);
+            }
+            printf("calling exec:\n");
+            if(first)
+              first = false;
             execvp(p->argv[0], p->argv);
             
 	    /* YOUR CODE HERE?  Child-side code for new process. */
@@ -102,7 +121,12 @@ void spawn_job(job_t *j, bool fg)
             /* establish child process group */
             p->pid = pid;
             set_child_pgid(j, p);
-            waitpid(pid, &status, 0);
+            if(!first) {
+              close(fd[1]);
+              close(0);       //stdin closed
+              dup2(fd[0],0);
+          }
+            //waitpid(pid, &status, 0);
             /* YOUR CODE HERE?  Parent-side code for new process.  */
           }
 
@@ -115,8 +139,10 @@ void spawn_job(job_t *j, bool fg)
 /* Sends SIGCONT signal to wake up the blocked job */
 void continue_job(job_t *j) 
 {
-     if(kill(-j->pgid, SIGCONT) < 0)
+     if(kill(-j->pgid, SIGCONT) < 0) {
           perror("kill(SIGCONT)");
+          unix_error("kill(SIGCONT)");
+      }
 }
 
 
@@ -132,7 +158,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
       printf("calling builtin\n");
 
         if (!strcmp(argv[0], "quit")) {
-            /* Your code here */
+            close(logfd);
             exit(EXIT_SUCCESS);
 	      }
         else if (!strcmp("jobs", argv[0])) {
@@ -156,7 +182,6 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
           printf("no jobs!\n");
         }
 	else if (!strcmp("cd", argv[0])) {
-      printf("calling cd\n");
       if(chdir(argv[1]) == -1) {
         printf("%s\n", argv[1]);
         unix_error("Chdir error");
