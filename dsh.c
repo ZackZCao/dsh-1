@@ -12,7 +12,12 @@ int logfd;
 
 void unix_error(char *msg) /* Unix-style error */
 {
+  char* logString;
   fprintf(stderr, "%s: %s\n", msg, strerror(errno));
+  format_log_entry(logString, msg, sterror(errno));
+  if(!write(logfd, logString, strlen(logString))) {
+    fprintf(stderr, "Log write error: %s\n", sterror(errno));
+  }
   //exit(0);
 }
 
@@ -228,7 +233,6 @@ int main()
        continue;
     else if(!j->bg) {
        spawn_job(j, !j->bg);
-       waitpid(pid, &status, 0);
      }
      else
       spawn_job(j, !j->bg);
