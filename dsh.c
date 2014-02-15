@@ -83,7 +83,8 @@ void spawn_job(job_t *j, bool fg)
             exit(EXIT_FAILURE);
 
           case 0: /* child process  */
-            p->pid = getpid();	    
+            p->pid = getpid();
+            printf("newchild error\n");	    
             new_child(j, p, fg);
             execvp(p->argv[0], p->argv);
             
@@ -149,7 +150,6 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
           printf("no jobs!\n");
         }
 	else if (!strcmp("cd", argv[0])) {
-      char cwd[1024];
       if(!chdir(argv[1])) {
         unix_error("Chdir error: ");
       }
