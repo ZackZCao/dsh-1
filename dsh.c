@@ -5,6 +5,8 @@ void continue_job(job_t *j); /* resume a stopped job */
 void spawn_job(job_t *j, bool fg); /* spawn a new job */
 
 
+int logfd;
+
 void unix_error(char *msg) /* Unix-style error */
 {
   fprintf(stderr, "%s: %s\n", msg, strerror(errno));
@@ -150,7 +152,12 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
             /* Your code here */
         }
         else if (!strcmp("fg", argv[0])) {
-          continue_job(last_job);
+          if(argc == 1)
+            continue_job(last_job);
+          if(argc == 2) {
+            printf("%d\n", argv[1]);
+              seize_tty(argv[1]);
+            }
             /* Your code here */
         }
         return false;       /* not a builtin command */
@@ -193,6 +200,7 @@ int main()
 
 	init_dsh();
 	DEBUG("Successfully initialized\n");
+  logfd = Open(LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, 0666);  
 
 	while(1) {
         job_t *j = NULL;
@@ -209,13 +217,12 @@ int main()
         /* Only for debugging purposes to show parser output; turn off in the
          * final code */
     printf("pid:%d\n", j->pgid);
-    if(PRINT_INFO) print_job(j);
     process_t* proc = j->first_process;
-      if(builtin_cmd(j, proc->argc, proc->argv))
-        continue;
-      else {
-        spawn_job(j, !j->bg);
-      }
+    if(builtin_cmd(j, proc->argc, proc->argv))
+       continue;
+    else
+       spawn_job(j, !j->bg);
+    if(PRINT_INFO) print_job(j);
 
         /* Your code goes here */
         /* You need to loop through jobs list since a command line can contain ;*/
