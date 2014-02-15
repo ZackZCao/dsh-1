@@ -1,8 +1,11 @@
 #include "dsh.h"
 
+#define   LOG_FILE      "proxy.log"
+
 void seize_tty(pid_t callingprocess_pgid); /* Grab control of the terminal for the calling process pgid.  */
 void continue_job(job_t *j); /* resume a stopped job */
 void spawn_job(job_t *j, bool fg); /* spawn a new job */
+
 
 
 int logfd;
@@ -10,7 +13,7 @@ int logfd;
 void unix_error(char *msg) /* Unix-style error */
 {
   fprintf(stderr, "%s: %s\n", msg, strerror(errno));
-  exit(0);
+  //exit(0);
 }
 
 /* Sets the process group id for a given job and process */
@@ -141,7 +144,9 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
         }
 	else if (!strcmp("cd", argv[0])) {
       char cwd[1024];
-      chdir(argv[1]);
+      if(!chdir(argv[1])) {
+        unix_error("Chdir error: ");
+      }
 
             /* Your code here */
         }
@@ -152,12 +157,12 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
             /* Your code here */
         }
         else if (!strcmp("fg", argv[0])) {
-          if(argc == 1)
+          if(last_job) {
             continue_job(last_job);
-          if(argc == 2) {
-            printf("%d\n", argv[1]);
-              seize_tty(argv[1]);
-            }
+            printf("%s\n", last_job->commandinfo);          
+          }
+          else
+            fprintf(stderr, "No job to foreground!");
             /* Your code here */
         }
         return false;       /* not a builtin command */
@@ -200,7 +205,8 @@ int main()
 
 	init_dsh();
 	DEBUG("Successfully initialized\n");
-  logfd = Open(LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, 0666);  
+  int status;
+  logfd = open(LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, 0666);  
 
 	while(1) {
         job_t *j = NULL;
@@ -218,10 +224,14 @@ int main()
          * final code */
     printf("pid:%d\n", j->pgid);
     process_t* proc = j->first_process;
-    if(builtin_cmd(j, proc->argc, proc->argv))
+    if(builtin_cmd(j, proc->argc, proc->argv)) 
        continue;
-    else
+    else if(!j->bg) {
        spawn_job(j, !j->bg);
+       waitpid(pid, &status, 0);
+     }
+     else
+      spawn_job(j, !j->bg);
     if(PRINT_INFO) print_job(j);
 
         /* Your code goes here */
