@@ -14,9 +14,9 @@ void unix_error(char *msg) /* Unix-style error */
 {
   char* logString;
   fprintf(stderr, "%s: %s\n", msg, strerror(errno));
-  format_log_entry(logString, msg, sterror(errno));
+  sprintf(logString,"%s: %s\n", msg, strerror(errno));
   if(!write(logfd, logString, strlen(logString))) {
-    fprintf(stderr, "Log write error: %s\n", sterror(errno));
+    fprintf(stderr, "Log write error: %s\n", strerror(errno));
   }
   //exit(0);
 }
@@ -123,6 +123,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 
 	    /* check whether the cmd is a built in command
         */
+      printf("calling builtin\n");
 
         if (!strcmp(argv[0], "quit")) {
             /* Your code here */
@@ -224,18 +225,29 @@ int main()
       }
 			continue; /* NOOP; user entered return or spaces with return */
 		}
-
+    /*while(j) {
+      printf("%s\n", j->commandinfo);
+      if(!j->next)
+        break;
+      else
+        j = j->next;
+    } */
         /* Only for debugging purposes to show parser output; turn off in the
          * final code */
     printf("pid:%d\n", j->pgid);
     process_t* proc = j->first_process;
-    if(builtin_cmd(j, proc->argc, proc->argv)) 
-       continue;
-    else if(!j->bg) {
-       spawn_job(j, !j->bg);
-     }
-     else
-      spawn_job(j, !j->bg);
+    job_t * workingjob = j;
+    while(workingjob) {
+      if(builtin_cmd(j, proc->argc, proc->argv)) 
+         continue;
+      else if(!j->bg) {
+         spawn_job(j, !j->bg);
+       }
+       else
+        spawn_job(j, !j->bg);
+      
+      workingjob = workingjob->next;
+    }
     if(PRINT_INFO) print_job(j);
 
         /* Your code goes here */
