@@ -150,9 +150,13 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
           printf("no jobs!\n");
         }
 	else if (!strcmp("cd", argv[0])) {
-      if(!chdir(argv[1])) {
+      printf("calling cd\n");
+      if(chdir(argv[1]) == -1) {
+        printf("%s\n", argv[1]);
         unix_error("Chdir error: ");
       }
+      else
+        return true;
 
             /* Your code here */
         }
@@ -235,16 +239,16 @@ int main()
         /* Only for debugging purposes to show parser output; turn off in the
          * final code */
     printf("pid:%d\n", j->pgid);
-    process_t* proc = j->first_process;
+    process_t* proc;
     job_t * workingjob = j;
     while(workingjob) {
-      if(builtin_cmd(j, proc->argc, proc->argv)) 
-         continue;
-      else if(!j->bg) {
-         spawn_job(j, !j->bg);
-       }
-       else
-        spawn_job(j, !j->bg);
+      
+      proc = workingjob->first_process;
+      if(builtin_cmd(workingjob, proc->argc, proc->argv)) {}
+      else if(!workingjob->bg)
+         spawn_job(workingjob, !workingjob->bg);
+      else
+        spawn_job(workingjob, !workingjob->bg);
       
       workingjob = workingjob->next;
     }
