@@ -1,6 +1,6 @@
 #include "dsh.h"
 
-#define   LOG_FILE      "proxy.log"
+#define   LOG_FILE      "dsh.log"
 
 void seize_tty(pid_t callingprocess_pgid); /* Grab control of the terminal for the calling process pgid.  */
 void continue_job(job_t *j); /* resume a stopped job */
@@ -12,11 +12,16 @@ int logfd;
 
 void unix_error(char *msg) /* Unix-style error */
 {
-  char* logString;
-  fprintf(stderr, "%s: %s\n", msg, strerror(errno));
-  sprintf(logString,"%s: %s\n", msg, strerror(errno));
-  if(!write(logfd, logString, strlen(logString))) {
+  printf("logfd %d\n", logfd);
+  char* logString[1024];
+  fprintf(stderr, "%s : %s\n", msg, strerror(errno));
+  sprintf(logString,"%s : %s\n", msg, strerror(errno));
+  if(write(logfd, logString, strlen(logString)) == -1) {
+    printf("write error\n");
     fprintf(stderr, "Log write error: %s\n", strerror(errno));
+  }
+  else {
+    printf("logwrite\n");
   }
   //exit(0);
 }
@@ -145,6 +150,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
                 }
                 j = j->next;
               }
+
               return true;
           }
           printf("no jobs!\n");
@@ -153,10 +159,13 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
       printf("calling cd\n");
       if(chdir(argv[1]) == -1) {
         printf("%s\n", argv[1]);
-        unix_error("Chdir error: ");
+        unix_error("Chdir error");
       }
-      else
+      else {
+        last_job->first_process->status = 0;
+        last_job->first_process->completed = true;
         return true;
+      }
 
             /* Your code here */
         }
@@ -169,7 +178,10 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
         else if (!strcmp("fg", argv[0])) {
           if(last_job) {
             continue_job(last_job);
-            printf("%s\n", last_job->commandinfo);          
+            last_job->first_process->status = 0;
+            last_job->first_process->completed = true;
+            printf("%s\n", last_job->commandinfo);
+            return true; 
           }
           else
             fprintf(stderr, "No job to foreground!");
@@ -217,6 +229,7 @@ int main()
 	DEBUG("Successfully initialized\n");
   int status;
   logfd = open(LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, 0666);  
+  printf("logfile %d\n", logfd);
 
 	while(1) {
         job_t *j = NULL;
@@ -263,4 +276,5 @@ int main()
             /* else */
             /* spawn_job(j,false) */
     }
+    close(logfd);
 }
