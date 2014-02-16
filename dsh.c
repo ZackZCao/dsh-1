@@ -7,7 +7,7 @@ void continue_job(job_t *j); /* resume a stopped job */
 void spawn_job(job_t *j, bool fg); /* spawn a new job */
 
 
-
+pid_t dsh_pgid;
 int logfd;
 
 void unix_error(char *msg) /* Unix-style error */
@@ -86,30 +86,32 @@ void spawn_job(job_t *j, bool fg)
     printf("%s\n", p->argv[i]);
     i++;
   }
+  printf("%d\n", dsh_pgid);
 
-  printf("processid : %d\n", p->pid);
+  //printf("processid : %d\n", p->pid);
 	  /* YOUR CODE HERE? */
 	  /* Builtin commands are already taken care earlier */
 	  
 	  switch (pid = fork()) {
-          printf("%s\n", first ? "true" : "false");
+          //printf("%s\n", first ? "true" : "false");
           case -1: /* fork failure */
             perror("fork");
             exit(EXIT_FAILURE);
 
           case 0: /* child process  */
-            printf("child : %s\n", first ? "true" : "false");
+            //printf("child : %s\n", first ? "true" : "false");
             p->pid = getpid();
-            printf("newchild error : pgid - %d\n", j->pgid);	    
+            //printf("newchild error : pgid - %d\n", j->pgid);	    
             new_child(j, p, fg);
             if(!first) {
               close(fd[0]);   
               close(1);      
               dup2(fd[1],1);
             }
-            printf("calling exec:\n");
-            if(first)
-              first = false;
+            //printf("calling exec:\n");
+            if(j->bg) {
+              tcsetpgrp(STDIN_FILENO, dsh_pgid);
+            }
             execvp(p->argv[0], p->argv);
             
 	    /* YOUR CODE HERE?  Child-side code for new process. */
@@ -118,7 +120,7 @@ void spawn_job(job_t *j, bool fg)
             break;    /* NOT REACHED */
 
           default: /* parent */
-            printf("parent : %s\n", first ? "true" : "false");
+            //printf("parent : %s\n", first ? "true" : "false");
             /* establish child process group */
             p->pid = pid;
             set_child_pgid(j, p);
@@ -256,6 +258,8 @@ int main()
 	init_dsh();
 	DEBUG("Successfully initialized\n");
   int status;
+  dsh_pgid = getpid();
+  printf("dsh pgid - %d\n", dsh_pgid);
   logfd = open(LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, 0666);  
   printf("logfile %d\n", logfd);
 
